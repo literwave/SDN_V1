@@ -1,0 +1,6 @@
+ QWidget {
+
+     border-right:1px solid rgba(0,0,0,.2);
+     background-color:rgb(244,244,244);
+     box-shadow: 1px 1px 10px rgba(244, 244, 244, .2);
+ }
