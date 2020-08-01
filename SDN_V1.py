@@ -1,20 +1,27 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time : 2020-07-29 18:27
-# @Author : Curry
-# @Site : https://github.com/zengxiaobo2000/SDN_V1
-# @File : SDN_V1.py
-# @Software: PyCharm
 
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLineEdit, QPushButton, QFormLayout, QLabel, \
     QHBoxLayout, QGridLayout, QMessageBox, QRadioButton, QVBoxLayout, QComboBox, QTextBrowser
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from ospfDialog import *
+from inputdialog import inputDialog
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from connection import *
 import sys
 import time
 import json
+import requests
+
+# 忽略ssh警告连接
+requests.packages.urllib3.disable_warnings()
+# 构造头部信息
+headers = {"Accept": "application/yang-data+json",
+           "Content-type": "application/yang-data+json"
+           }
+
+api_url = "https://{}/restconf/data/ietf-interfaces:interfaces".format(devices[0])
+
 
 
 class UI_form(QWidget):
@@ -28,6 +35,8 @@ class UI_form(QWidget):
         self.command = 0
         self.device = 1
         self.resize(1130, 676)
+        self.setWindowIcon(QIcon("./image/icon.jpg"))
+
         self.setAutoFillBackground(True)
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(244, 244, 244))
@@ -54,11 +63,14 @@ class UI_form(QWidget):
         self.cb.addItem('查看接口的摘要信息')
         self.cb.addItem('查看路由表')
         self.cb.addItem('显示所有的配置')
+        self.cb.addItem('配置环回口')
+        self.cb.addItem('配置OSPF')
 
         self.btext_1 = QTextBrowser()
         self.btext_2 = QTextBrowser()
         self.btext_3 = QTextBrowser()
         self.btext_4 = QTextBrowser()
+
 
         self.btn5 = QPushButton("确定")
         with open('QSS/btn.qss', 'r') as f:
@@ -210,14 +222,24 @@ class UI_form(QWidget):
 
     def radioStatus(self):
         radioButton = self.sender()
+        self.cb.clear()
         if radioButton.text() == '方法一':
             if radioButton.isChecked() == True:
+                self.cb.addItem('查看接口的摘要信息')
+                self.cb.addItem('查看路由表')
+                self.cb.addItem('显示所有的配置')
+                self.cb.addItem('配置环回口')
+                self.cb.addItem('配置OSPF')
                 self.method = '方法一'
         elif radioButton.text() == '方法二':
             if radioButton.isChecked() == True:
+                self.cb.addItem("查看接口信息")
+                self.cb.addItem("添加环回口")
                 self.method = '方法二'
         else:
             if radioButton.isChecked() == True:
+                self.cb.addItem("更改主机名")
+                self.cb.addItem("添加环回")
                 self.method = '方法三'
 
     def cbStatus(self, i):
@@ -227,6 +249,20 @@ class UI_form(QWidget):
             self.command = "show ip route"
         elif self.cb.currentText() == '显示所有的配置':
             self.command = "show running-config"
+        elif self.cb.currentText()=='配置环回口':
+            self.command="add ip"
+        elif self.cb.currentText()=='配置OSPF':
+            self.command="OSPF"
+        elif self.cb.currentText()=='查看接口信息':
+            self.command="find"
+            self.url=api_url
+        elif self.cb.currentText()=='添加环回口':
+            self.command="add"
+            self.url=api_url+"/interface=Loopback99"
+        elif self.cb.currentText() == '更改主机名':
+            self.command="change"
+        elif self.cb.currentText() == '添加环回':
+            self.command="add_3"
         print(self.command)
 
     def method1(self):
@@ -236,6 +272,8 @@ class UI_form(QWidget):
             if self.device == 1:
                 if self.command == 'show ip interface brief':
                     output = self.result["sshcli"][0].send_command(self.command)
+                    # self.btext_1.append(output)
+                    # self.btext_1.moveCursor(self.btext_1.textCursor().End)
                     outputl = output.split()
                     # print(outputl)
                     count = int(len(outputl) / 6)
@@ -259,6 +297,44 @@ class UI_form(QWidget):
                     output = self.result["sshcli"][0].send_command(self.command)
                     self.btext_1.append(output)
                     self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+                elif self.command=='add ip':
+                    self.input = inputDialog()
+                    self.input.setWindowModality(Qt.ApplicationModal)
+
+                    self.input._datasinal.connect(self.appdata)
+                    self.input.exec()
+
+                elif self.command=='OSPF':
+                    self.ospf=ospfDialog()
+                    self.ospf.setWindowModality(Qt.ApplicationModal)
+
+                    self.ospf.lesignal.connect(self.appospf)
+                    self.ospf.exec()
+
+
+
+                    # name=self.input.name.text()
+                    # ip=self.input.iplineEdit.text()
+                    # net=self.input.netmask.text()
+                    # des=self.input.deslineEdit.text()
+                    # name="int loopback "+name
+                    # ipnet="ip address "+ip+" "+net
+                    # des="description "+des
+                    # res=[]
+                    # res.append(name)
+                    # res.append(ipnet)
+                    # res.append(des)
+                    #
+                    # print(res)
+                    # output=self.result['sshcli'][0].send_config_set(res)
+                    # self.btext_1.append(output)
+                    # self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+
+
+
+
 
             elif self.device == 2:
                 if self.command == 'show ip interface brief':
@@ -288,6 +364,20 @@ class UI_form(QWidget):
                     self.btext_2.append(output)
                     self.btext_2.moveCursor(self.btext_2.textCursor().End)
 
+                elif self.command=='add ip':
+                    self.input = inputDialog()
+                    self.input.setWindowModality(Qt.ApplicationModal)
+
+                    self.input._datasinal.connect(self.appdata)
+                    self.input.exec()
+
+                elif self.command=='OSPF':
+                    self.ospf=ospfDialog()
+                    self.ospf.setWindowModality(Qt.ApplicationModal)
+
+                    self.ospf.lesignal.connect(self.appospf)
+                    self.ospf.exec()
+
             elif self.device == 3:
                 if self.command == 'show ip interface brief':
                     output = self.result["sshcli"][0].send_command(self.command)
@@ -316,6 +406,20 @@ class UI_form(QWidget):
                     self.btext_3.append(output)
                     self.btext_3.moveCursor(self.btext_3.textCursor().End)
 
+                elif self.command=='add ip':
+                    self.input = inputDialog()
+                    self.input.setWindowModality(Qt.ApplicationModal)
+
+                    self.input._datasinal.connect(self.appdata)
+                    self.input.exec()
+
+                elif self.command=='OSPF':
+                    self.ospf=ospfDialog()
+                    self.ospf.setWindowModality(Qt.ApplicationModal)
+
+                    self.ospf.lesignal.connect(self.appospf)
+                    self.ospf.exec()
+
             elif self.device == 4:
                 if self.command == 'show ip interface brief':
                     output = self.result["sshcli"][0].send_command(self.command)
@@ -343,6 +447,414 @@ class UI_form(QWidget):
                     output = self.result["sshcli"][0].send_command(self.command)
                     self.btext_4.append(output)
                     self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+                elif self.command=='add ip':
+                    self.input = inputDialog()
+                    self.input.setWindowModality(Qt.ApplicationModal)
+
+                    self.input._datasinal.connect(self.appdata)
+                    self.input.exec()
+
+                elif self.command=='OSPF':
+                    self.ospf=ospfDialog()
+                    self.ospf.setWindowModality(Qt.ApplicationModal)
+
+                    self.ospf.lesignal.connect(self.appospf)
+                    self.ospf.exec()
+
+        elif self.method=="方法二":
+            if self.device==1:
+                if self.command=="find":
+                    resp = requests.get(self.url, auth=remoteInfo, headers=headers, verify=False)
+                    res = resp.json()
+                    t=json.dumps(res)
+                    self.btext_1.append(t)
+                    self.btext_1.moveCursor(self.btext_1.textCursor().End)
+                elif self.command=="add":
+                    yangConfig = {
+                        "ietf-interfaces:interface": {
+                            "name": "Loopback99",
+                            "description": "WHATEVER99",
+                            "type": "iana-if-type:softwareLoopback",
+                            "enabled": True,
+                            "ietf-ip:ipv4": {
+                                "address": [
+                                    {
+                                        "ip": "99.99.99.99",
+                                        "netmask": "255.255.255.0"
+                                    }
+                                ]
+                            },
+                            "ietf-ip:ipv6": {}
+                        }
+                    }
+
+
+
+                    resp = requests.put(self.url, data=json.dumps(yangConfig), auth=remoteInfo, headers=headers, verify=False)
+
+                    if (resp.status_code >= 200 and resp.status_code <= 299):
+                        print("STATUS OK: {}".format(resp.status_code))
+                        self.btext_1.append("添加成功")
+                        self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+                    else:
+                        print("Error code {}, reply: {}".format(resp.status_code, resp.json()))
+                        self.btext_1.append("添加失败")
+                        self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+
+
+
+
+
+            elif self.device==2:
+                if self.command=="find":
+                    resp = requests.get(self.url, auth=remoteInfo, headers=headers, verify=False)
+                    res = resp.json()
+                    t = json.dumps(res)
+                    self.btext_2.append(t)
+                    self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+                elif self.command=="add":
+                    yangConfig = {
+                        "ietf-interfaces:interface": {
+                            "name": "Loopback99",
+                            "description": "WHATEVER99",
+                            "type": "iana-if-type:softwareLoopback",
+                            "enabled": True,
+                            "ietf-ip:ipv4": {
+                                "address": [
+                                    {
+                                        "ip": "99.99.99.99",
+                                        "netmask": "255.255.255.0"
+                                    }
+                                ]
+                            },
+                            "ietf-ip:ipv6": {}
+                        }
+                    }
+
+
+
+                    resp = requests.put(self.url, data=json.dumps(yangConfig), auth=remoteInfo, headers=headers, verify=False)
+
+                    if (resp.status_code >= 200 and resp.status_code <= 299):
+                        print("STATUS OK: {}".format(resp.status_code))
+                        self.btext_2.append("添加成功")
+                        self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+                    else:
+                        print("Error code {}, reply: {}".format(resp.status_code, resp.json()))
+                        self.btext_2.append("添加失败")
+                        self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+
+            elif self.device==3:
+                if self.command=="find":
+                    resp = requests.get(self.url, auth=remoteInfo, headers=headers, verify=False)
+                    res = resp.json()
+                    t = json.dumps(res)
+                    self.btext_3.append(t)
+                    self.btext_3.moveCursor(self.btext_3.textCursor().End)
+                elif self.command=="add":
+                    yangConfig = {
+                        "ietf-interfaces:interface": {
+                            "name": "Loopback99",
+                            "description": "WHATEVER99",
+                            "type": "iana-if-type:softwareLoopback",
+                            "enabled": True,
+                            "ietf-ip:ipv4": {
+                                "address": [
+                                    {
+                                        "ip": "99.99.99.99",
+                                        "netmask": "255.255.255.0"
+                                    }
+                                ]
+                            },
+                            "ietf-ip:ipv6": {}
+                        }
+                    }
+
+
+
+                    resp = requests.put(self.url, data=json.dumps(yangConfig), auth=remoteInfo, headers=headers, verify=False)
+
+                    if (resp.status_code >= 200 and resp.status_code <= 299):
+                        print("STATUS OK: {}".format(resp.status_code))
+                        self.btext_3.append("添加成功")
+                        self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+                    else:
+                        print("Error code {}, reply: {}".format(resp.status_code, resp.json()))
+                        self.btext_3.append("添加失败")
+                        self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+            elif self.device==4:
+                if self.command=="find":
+                    resp = requests.get(self.url, auth=remoteInfo, headers=headers, verify=False)
+                    res=resp.json()
+                    t = json.dumps(res)
+                    self.btext_4.append(t)
+                    self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+                elif self.command=="add":
+                    yangConfig = {
+                        "ietf-interfaces:interface": {
+                            "name": "Loopback99",
+                            "description": "WHATEVER99",
+                            "type": "iana-if-type:softwareLoopback",
+                            "enabled": True,
+                            "ietf-ip:ipv4": {
+                                "address": [
+                                    {
+                                        "ip": "99.99.99.99",
+                                        "netmask": "255.255.255.0"
+                                    }
+                                ]
+                            },
+                            "ietf-ip:ipv6": {}
+                        }
+                    }
+
+
+
+                    resp = requests.put(self.url, data=json.dumps(yangConfig), auth=remoteInfo, headers=headers, verify=False)
+
+                    if (resp.status_code >= 200 and resp.status_code <= 299):
+                        print("STATUS OK: {}".format(resp.status_code))
+                        self.btext_4.append("添加成功")
+                        self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+                    else:
+                        print("Error code {}, reply: {}".format(resp.status_code, resp.json()))
+                        self.btext_4.append("添加失败")
+                        self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+
+        elif self.method =="方法三":
+            if self.device==1:
+                if self.command=="change":
+                    print("no")
+                    netconf_data = """
+                    <config><native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                        <hostname>csr2kv</hostname>
+                    </native></config>"""
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_1.append("修改主机名成功")
+                    self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+                elif self.command=="add_3":
+                    print("why")
+                    netconf_data = """
+                    <config>
+                     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                      <interface>
+                       <Loopback>
+                        <name>111</name>
+                        <description>TEST111</description>
+                        <ip>
+                         <address>
+                          <primary>
+                           <address>100.100.100.100</address>
+                           <mask>255.255.255.0</mask>
+                          </primary>
+                         </address>
+                        </ip>
+                       </Loopback>
+                      </interface>
+                     </native>
+                    </config>
+                    """
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    print("this")
+                    self.btext_1.append("添加环口成功")
+                    self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+            elif self.device==2:
+                if self.command == "change":
+                    netconf_data = """
+                                    <config><native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                                        <hostname>csr2kv</hostname>
+                                    </native></config>"""
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_2.append("修改主机名成功")
+                    self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+                elif self.command == "add_3":
+
+                    netconf_data = """
+                    <config>
+                     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                      <interface>
+                       <Loopback>
+                        <name>111</name>
+                        <description>TEST111</description>
+                        <ip>
+                         <address>
+                          <primary>
+                           <address>100.100.100.100</address>
+                           <mask>255.255.255.0</mask>
+                          </primary>
+                         </address>
+                        </ip>
+                       </Loopback>
+                      </interface>
+                     </native>
+                    </config>
+                    """
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_2.append("添加环口成功")
+                    self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+            elif self.device==3:
+                if self.command=="change":
+                    netconf_data = """
+                                    <config><native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                                        <hostname>csr2kv</hostname>
+                                    </native></config>"""
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_3.append("修改主机名成功")
+                    self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+                elif self.command == "add_3":
+                    netconf_data = """
+                    <config>
+                     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                      <interface>
+                       <Loopback>
+                        <name>111</name>
+                        <description>TEST111</description>
+                        <ip>
+                         <address>
+                          <primary>
+                           <address>100.100.100.100</address>
+                           <mask>255.255.255.0</mask>
+                          </primary>
+                         </address>
+                        </ip>
+                       </Loopback>
+                      </interface>
+                     </native>
+                    </config>
+                    """
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_3.append("添加环口成功")
+                    self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+            elif self.device==4:
+                if self.command=="change":
+                    netconf_data = """
+                                    <config><native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                                        <hostname>csr2kv</hostname>
+                                    </native></config>"""
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_4.append("修改主机名成功")
+                    self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+                elif self.command == "add_3":
+                    netconf_data = """
+                    <config>
+                     <native xmlns="http://cisco.com/ns/yang/Cisco-IOS-XE-native">
+                      <interface>
+                       <Loopback>
+                        <name>111</name>
+                        <description>TEST111</description>
+                        <ip>
+                         <address>
+                          <primary>
+                           <address>100.100.100.100</address>
+                           <mask>255.255.255.0</mask>
+                          </primary>
+                         </address>
+                        </ip>
+                       </Loopback>
+                      </interface>
+                     </native>
+                    </config>
+                    """
+
+                    self.result["manager"][0].edit_config(target="running", config=netconf_data)
+                    self.btext_4.append("添加环口成功")
+                    self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+
+
+    def appdata(self,name,ip,net,des):
+        name = "int loopback " + name
+        ipnet = "ip address " + ip + " " + net
+        des = "description " + des
+        res = []
+        res.append(name)
+        res.append(ipnet)
+        res.append(des)
+
+        print(res)
+        output = self.result['sshcli'][0].send_config_set(res)
+        if self.device==1 and self.method=="方法一":
+
+            self.btext_1.append(output)
+            self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+        elif self.device==2 and self.method=="方法一":
+
+            self.btext_2.append(output)
+            self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+        elif self.device==3 and self.method=="方法一":
+            self.btext_3.append(output)
+            self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+        elif self.device==4 and self.method=="方法一":
+            self.btext_4.append(output)
+            self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+        self.input.close()
+        self.input.destroy()
+
+
+    def appospf(self,process,Id,IP,netmask):
+        process="router ospf "+process
+        id="router-id "+Id
+        IP="network "+IP+" "+netmask+" area 0"
+        res=[]
+        res.append(process)
+        res.append(id)
+        res.append(IP)
+        print(res)
+        output = self.result['sshcli'][0].send_config_set(res)
+        if self.device == 1 and self.method == "方法一":
+
+            self.btext_1.append(output)
+            self.btext_1.moveCursor(self.btext_1.textCursor().End)
+
+        elif self.device == 2 and self.method == "方法一":
+
+            self.btext_2.append(output)
+            self.btext_2.moveCursor(self.btext_2.textCursor().End)
+
+        elif self.device == 3 and self.method == "方法一":
+            self.btext_3.append(output)
+            self.btext_3.moveCursor(self.btext_3.textCursor().End)
+
+        elif self.device == 4 and self.method == "方法一":
+            self.btext_4.append(output)
+            self.btext_4.moveCursor(self.btext_4.textCursor().End)
+
+        self.ospf.close()
+        self.ospf.destroy()
+
+
+
+
+
 
         # print(self.method)
         # self.command=self.cb.currentText()
