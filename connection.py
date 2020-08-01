@@ -1,4 +1,3 @@
-
 from netmiko import ConnectHandler
 from ncclient import manager
 

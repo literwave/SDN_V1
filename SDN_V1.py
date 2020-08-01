@@ -1,5 +1,3 @@
-
-
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QLineEdit, QPushButton, QFormLayout, QLabel, \
     QHBoxLayout, QGridLayout, QMessageBox, QRadioButton, QVBoxLayout, QComboBox, QTextBrowser
 from requests.packages.urllib3.exceptions import InsecureRequestWarning

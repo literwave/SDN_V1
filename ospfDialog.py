@@ -1,12 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-# @Time : 2020-07-31 11:46
-# @Author : Curry
-# @Site : https://github.com/coolbreeze2
-# @File : ospfDialog.py
-# @Software: PyCharm
-
-
 from PyQt5.QtWidgets import QGridLayout, QDialog, QApplication, QLabel, QLineEdit, QPushButton
 from PyQt5.QtCore import Qt,pyqtSignal
 from PyQt5.QtGui import QFont,QIcon
