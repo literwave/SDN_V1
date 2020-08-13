@@ -4,7 +4,7 @@ from ncclient import manager
 
 remoteInfo = ("cisco", "cisco123!")
 # 设备地址
-devices = ["192.168.0.101", "192.168.0.103", "192.168.0.107"]
+devices = ["192.168.0.107", "192.168.0.103", "192.168.0.107"]
 
 
 def connection():
